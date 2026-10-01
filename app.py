@@ -1,36 +1,44 @@
 import streamlit as st
 import pandas as pd
+import io
 
-st.set_page_config(page_title="CSV軽量化アプリ")
+st.set_page_config(page_title="データ軽量化・圧縮アプリ")
 
-st.title("CSV軽量化アプリ")
-st.write("CSVを読み込み、無駄なデータを削ぎ落として同じ名前で書き出します。")
+st.title("データ軽量化・圧縮アプリ")
+st.write("CSVを読み込み、ファイルサイズを劇的に軽くする形式で書き出します。")
 
 # ファイルアップローダー
 uploaded_file = st.file_uploader("「**CSVファイルを選択**」", type=["csv"])
 
 if uploaded_file is not None:
-    # 元のファイル名とサイズを取得
     original_name = uploaded_file.name
     original_size = uploaded_file.size / (1024 * 1024)
     
     st.write(f"読み込み元: 「**{original_name}**」 ({original_size:.2f} MB)")
     
     try:
-        # データの読み込み
         df = pd.read_csv(uploaded_file)
         
-        # 軽量化処理
-        # 1. 文字列の前後にある空白を削除
-        str_cols = df.select_dtypes(include=['object']).columns
-        for col in str_cols:
-            df[col] = df[col].astype(str).str.strip()
+        # 保存形式の選択
+        option = st.radio(
+            "「**保存形式を選択**」", 
+            ["GZIP圧縮CSV (.csv.gz)", "Parquet形式 (.parquet)"]
+        )
         
-        # 2. CSVデータとして変換（インデックスなし。float_formatは削除して元の数値を維持）
-        csv_data = df.to_csv(index=False).encode('utf-8')
+        buffer = io.BytesIO()
         
-        # 処理後のサイズを計算
-        new_size = len(csv_data) / (1024 * 1024)
+        if option == "GZIP圧縮CSV (.csv.gz)":
+            df.to_csv(buffer, index=False, compression='gzip')
+            file_name = original_name + ".gz"
+            mime_type = "application/gzip"
+        else:
+            # Parquet形式（高圧縮・高速読み込み）
+            df.to_parquet(buffer, index=False)
+            file_name = original_name.replace(".csv", ".parquet")
+            mime_type = "application/octet-stream"
+            
+        output_data = buffer.getvalue()
+        new_size = len(output_data) / (1024 * 1024)
         reduction = (1 - new_size / original_size) * 100 if original_size > 0 else 0
         
         st.success("処理が完了しました！")
@@ -38,10 +46,10 @@ if uploaded_file is not None:
         
         # ダウンロードボタン
         st.download_button(
-            label="同じ名前で保存",
-            data=csv_data,
-            file_name=original_name,
-            mime="text/csv"
+            label="「**ダウンロード**」",
+            data=output_data,
+            file_name=file_name,
+            mime=mime_type
         )
         
     except Exception as e:
