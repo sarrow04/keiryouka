@@ -1,2 +1,2 @@
-# keiryouka
+# 記録アプリ
 Csv 軽量化
