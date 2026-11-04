@@ -2,3 +2,10 @@ streamlit
 pandas
 pyarrow
 datetime
+numpy
+matplotlib
+seaborn
+scikit-learn
+lightgbm
+pyarrow
+japanize-matplotlib
